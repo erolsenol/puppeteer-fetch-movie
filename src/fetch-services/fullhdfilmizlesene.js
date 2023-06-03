@@ -1,6 +1,9 @@
 import client from "../browser/puppeteer.js";
 import axios from "axios";
 import { timeout } from "../utils/helper.js";
+import aws from "../aws/index.js";
+import dotenv from "dotenv";
+dotenv.config();
 
 const axiosConfig = {
   baseURL: process.env.API_URL,
@@ -26,16 +29,18 @@ async function StartFilmIzlesene(nextPage) {
 
   for (const el of movieUrls) {
     const movieObjectRes = await movieDetailFetch(el);
-    // console.log("movieObjectRes", movieObjectRes);
+
     try {
-      const createMovieRes = await apiInstance.post(
-        "v1/movies",
-        movieObjectRes
-      );
-      if (createMovieRes.status === 201) {
-        console.log("Created:", movieObjectRes);
-      } else if (createMovieRes.status === 500) {
-        console.log("Not Created:", movieObjectRes.title);
+      if (movieObjectRes) {
+        const createMovieRes = await apiInstance.post(
+          "v1/movies",
+          movieObjectRes
+        );
+        if (createMovieRes.status === 201) {
+          console.log("Created:", movieObjectRes?.title);
+        } else if (createMovieRes.status === 500) {
+          console.log("Not Created:", movieObjectRes?.title);
+        }
       }
     } catch (error) {
       console.log(
@@ -47,21 +52,210 @@ async function StartFilmIzlesene(nextPage) {
   startIndex += 1;
 
   if (nextPageRes) {
+    console.log("Next Page:", nextPageRes);
     await StartFilmIzlesene(nextPageRes);
   } else {
     console.log("completed");
   }
 }
 
-async function movieDetailFetch(pageUrl) {
+let uploadIndex = 0;
+
+async function UploadStartFilmIzlesene(nextPage) {
+  if (uploadIndex < 1) {
+    await client.initialize();
+    page = await client.newPage("fullhdfilmizlesene");
+    // browser = await puppeteer.launch(config);
+    // page = await browser.newPage();
+  }
+
+  await page.goto(nextPage);
+
+  const nextPageRes = await nextPageSet();
+  const movieUrls = await pageMovieUrlsSet();
+
+  for (const el of movieUrls) {
+    try {
+      const movieObjectRes = await movieImageUpload(el);
+
+      if (movieObjectRes.status === 200) {
+        console.log("Image Upload Completed:", movieObjectRes.data.title);
+      } else if (movieObjectRes.status === 500) {
+        console.log("Image Upload Not Completed:", movieObjectRes.data.title);
+      }
+    } catch (error) {
+      // console.log(
+      //   `status: ${error?.response?.status} - Text: ${error?.response?.statusText}`
+      // );
+    }
+  }
+
+  uploadIndex += 1;
+
+  if (nextPageRes) {
+    console.log("next page:", nextPageRes);
+    await UploadStartFilmIzlesene(nextPageRes);
+  } else {
+    console.log("completed");
+  }
+}
+
+async function movieImageUpload(pageUrl) {
   return new Promise(async (resolve, reject) => {
-    const movieObject = {};
     await page.goto(pageUrl);
     await page.waitForSelector("div[id='plx']");
     await timeout(250);
 
-    movieObject.fetchedSite = "fullhdfilmizlesene.pw";
+    const titleArea = await page.$("div[class='izle-titles']");
+
+    const movieTitle = await titleArea.evaluate(
+      (item) => item.children[0].innerText
+    );
+
+    const movieRes = await apiInstance.post("v1/movies/get-title-by-one", {
+      title: movieTitle.trim(),
+    });
+
+    if (movieRes.status === 200 && movieRes.data?.length > 0) {
+      const movieId = movieRes.data[0].id;
+
+      // if (!movieRes.data[0].img) {
+      //   console.log("img property not found");
+      //   resolve(false);
+      //   return;
+      // }
+
+      const newMovieItem = movieRes.data[0];
+      delete newMovieItem.img;
+      delete newMovieItem.id;
+
+      const imgObj = await page.$(
+        "body > div.orta.izle > div.alan.main > article > div.izle-content > section.detay-sol > picture > img"
+      );
+      const imgSrc = await imgObj.evaluate((item) => item.getAttribute("src"));
+
+      const imageRes = await axios.get(imgSrc, {
+        responseType: "arraybuffer",
+      });
+
+      // const bin = imageRes.data.toString("binary");
+
+      // const imgBase64 = base64ArrayBuffer(imageRes.data);
+      // console.log("imgBase64", imgBase64);
+
+      if (imageRes.status === 200) {
+        const uploadRes = await aws.auploadToS3(
+          imageRes.data,
+          "movie-project-images",
+          `image/${movieTitle.replace(/ /g, "-")}`
+        );
+
+        if (uploadRes.$metadata.httpStatusCode === 200) {
+        }
+        // try {
+        //   const imgSendRes = await apiInstance.patch(
+        //     `v1/movies/${movieId}`,
+        //     newMovieItem
+        //     // {
+        //     //   img: bin,
+        //     // }
+        //   );
+        //   if (imgSendRes.status === 200) {
+        //     resolve(imgSendRes);
+        //   }
+        // } catch (error) {
+        //   console.log("error:", error?.response?.status);
+        //   resolve(false);
+        // }
+      } else {
+        resolve(false);
+      }
+    } else {
+      resolve(false);
+    }
+  });
+}
+
+function base64ArrayBuffer(arrayBuffer) {
+  var base64 = "";
+  var encodings =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+  var bytes = new Uint8Array(arrayBuffer);
+  var byteLength = bytes.byteLength;
+  var byteRemainder = byteLength % 3;
+  var mainLength = byteLength - byteRemainder;
+
+  var a, b, c, d;
+  var chunk;
+
+  // Main loop deals with bytes in chunks of 3
+  for (var i = 0; i < mainLength; i = i + 3) {
+    // Combine the three bytes into a single integer
+    chunk = (bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2];
+
+    // Use bitmasks to extract 6-bit segments from the triplet
+    a = (chunk & 16515072) >> 18; // 16515072 = (2^6 - 1) << 18
+    b = (chunk & 258048) >> 12; // 258048   = (2^6 - 1) << 12
+    c = (chunk & 4032) >> 6; // 4032     = (2^6 - 1) << 6
+    d = chunk & 63; // 63       = 2^6 - 1
+
+    // Convert the raw binary segments to the appropriate ASCII encoding
+    base64 += encodings[a] + encodings[b] + encodings[c] + encodings[d];
+  }
+
+  // Deal with the remaining bytes and padding
+  if (byteRemainder == 1) {
+    chunk = bytes[mainLength];
+
+    a = (chunk & 252) >> 2; // 252 = (2^6 - 1) << 2
+
+    // Set the 4 least significant bits to zero
+    b = (chunk & 3) << 4; // 3   = 2^2 - 1
+
+    base64 += encodings[a] + encodings[b] + "==";
+  } else if (byteRemainder == 2) {
+    chunk = (bytes[mainLength] << 8) | bytes[mainLength + 1];
+
+    a = (chunk & 64512) >> 10; // 64512 = (2^6 - 1) << 10
+    b = (chunk & 1008) >> 4; // 1008  = (2^6 - 1) << 4
+
+    // Set the 2 least significant bits to zero
+    c = (chunk & 15) << 2; // 15    = 2^4 - 1
+
+    base64 += encodings[a] + encodings[b] + encodings[c] + "=";
+  }
+
+  return base64;
+}
+
+async function movieDetailFetch(pageUrl) {
+  return new Promise(async (resolve, reject) => {
+    const movieObject = {};
     movieObject.sourceUrl = pageUrl;
+
+    await page.goto(pageUrl);
+    await page.waitForSelector("div[id='plx']");
+
+    // await timeout(250);
+
+    try {
+      const getMovieSourceUrlRes = await apiInstance.post(
+        "v1/movies/get-movie-by-source-url",
+        { sourceUrl: movieObject.sourceUrl }
+      );
+      if (
+        getMovieSourceUrlRes?.status === 200 &&
+        getMovieSourceUrlRes?.data?.length > 0
+      ) {
+        resolve(false);
+        return;
+      }
+    } catch (error) {
+      console.log("get-movie-by-source-url error:");
+    }
+
+    movieObject.fetchedSite = "fullhdfilmizlesene.pw";
 
     const titleArea = await page.$("div[class='izle-titles']");
 
@@ -78,6 +272,21 @@ async function movieDetailFetch(pageUrl) {
       } else {
         movieObject[`title${index - 1}`] = titles[index];
       }
+    }
+
+    try {
+      const getMovieByTitleRes = await apiInstance.post(
+        "v1/movies/get-title-by-one",
+        { title: movieObject.title }
+      );
+      if (
+        getMovieByTitleRes?.status === 200 &&
+        getMovieByTitleRes?.data?.length > 0
+      ) {
+        movieObject.title = `${movieObject.title}-${getMovieByTitleRes.data.length}`;
+      }
+    } catch (error) {
+      console.log("get-movie-by-source-url error:");
     }
 
     const imdbArea = await page.$("div[class='imdb-ic']");
@@ -181,7 +390,38 @@ async function movieDetailFetch(pageUrl) {
       movieObject.hd = true;
     }
 
-    resolve(movieObject);
+    const imgObj = await page.$(
+      "body > div.orta.izle > div.alan.main > article > div.izle-content > section.detay-sol > picture > img"
+    );
+    const imgSrc = await imgObj.evaluate((item) => item.getAttribute("src"));
+
+    try {
+      console.log("imgSrc:", imgSrc);
+      const imageRes = await axios.get(imgSrc, {
+        responseType: "arraybuffer",
+      });
+
+      if (imageRes.status === 200) {
+        const imageName = movieObject.title.replace(/ /g, "-");
+        const uploadRes = await aws.auploadToS3(
+          imageRes.data,
+          "movie-project-images",
+          `image/${imageName}`
+        );
+
+        if (uploadRes.$metadata.httpStatusCode === 200) {
+          movieObject.img = imageName;
+          resolve(movieObject);
+        } else {
+          resolve(false);
+        }
+      } else {
+        resolve(false);
+      }
+    } catch (error) {
+      console.log("image fetch error:", imgSrc);
+      resolve(false);
+    }
   });
 }
 
@@ -234,4 +474,4 @@ async function nextPageSet() {
 //   console.log("movieObjectRes", movieObjectRes);
 // })();
 
-export { StartFilmIzlesene };
+export { StartFilmIzlesene, UploadStartFilmIzlesene };

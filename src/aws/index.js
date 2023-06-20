@@ -22,7 +22,7 @@ export default {
   async auploadToS3(imageData, bucketName = "movie-project-images", key) {
     const putObjectCommand = new PutObjectCommand({
       Bucket: bucketName,
-      Key: key,
+      Key: key + ".jpg",
       Body: imageData,
     });
 

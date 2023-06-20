@@ -103,7 +103,7 @@ async function UploadStartFilmIzlesene(nextPage) {
 async function movieImageUpload(pageUrl) {
   return new Promise(async (resolve, reject) => {
     await page.goto(pageUrl);
-    await page.waitForSelector("div[id='plx']");
+    // await page.waitForSelector("div[id='plx']");
     await timeout(250);
 
     const titleArea = await page.$("div[class='izle-titles']");
@@ -235,9 +235,9 @@ async function movieDetailFetch(pageUrl) {
     movieObject.sourceUrl = pageUrl;
 
     await page.goto(pageUrl);
-    await page.waitForSelector("div[id='plx']");
+    // await page.waitForSelector("div[id='plx']");
 
-    // await timeout(250);
+    await timeout(250);
 
     try {
       const getMovieSourceUrlRes = await apiInstance.post(

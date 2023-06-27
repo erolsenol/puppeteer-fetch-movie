@@ -1,9 +1,13 @@
-import puppeteer from "puppeteer";
+import puppeteer, { executablePath } from "puppeteer";
 
 const browserConfig = {
   headless: false,
   defaultViewport: null,
   waitUntil: "networkidle2",
+
+  args: ["--no-sandbox"],
+  ignoreHTTPSErrors: true,
+  executablePath: executablePath(),
 };
 
 const goToConfig = {

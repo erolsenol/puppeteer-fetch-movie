@@ -14,10 +14,14 @@ import {
 
 // const basePageUrl = process.env.PAGE_URL_HDFILMCEHENNEMI;
 // const basePageUrl = process.env.PAGE_URL_HDFILMCEHENNEMILIFE;
-const basePageUrl = process.env.PAGE_URL_FULLHDFILMIZLESENE;
+const fullHdFilmIzleseneUrl = process.env.PAGE_URL_FULLHDFILMIZLESENE;
 
 // StartFilmCehennemiLife(basePageUrl);
 // Start(basePageUrl);
 
-StartFilmIzlesene(basePageUrl);
+// StartFilmIzlesene(fullHdFilmIzleseneUrl);
 // UploadStartFilmIzlesene(basePageUrl);
+
+import { StartImdbPoint } from "./src/fetch-services/imdbPoint.js";
+
+StartImdbPoint();

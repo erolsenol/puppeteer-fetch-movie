@@ -10,6 +10,7 @@ aws.initAws();
 import {
   StartFilmIzlesene,
   UploadStartFilmIzlesene,
+  StartVideoSave
 } from "./src/fetch-services/fullhdfilmizlesene.js";
 
 // const basePageUrl = process.env.PAGE_URL_HDFILMCEHENNEMI;
@@ -20,7 +21,8 @@ const fullHdFilmIzleseneUrl = process.env.PAGE_URL_FULLHDFILMIZLESENE;
 // Start(basePageUrl);
 
 // StartFilmIzlesene(fullHdFilmIzleseneUrl);
-// UploadStartFilmIzlesene(basePageUrl);
+// StartVideoSave(fullHdFilmIzleseneUrl)
+// UploadStartFilmIzlesene(fullHdFilmIzleseneUrl);
 
 import { StartImdbPoint } from "./src/fetch-services/imdbPoint.js";
 

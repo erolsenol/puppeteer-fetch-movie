@@ -4,10 +4,9 @@ const browserConfig = {
   headless: false,
   defaultViewport: null,
   waitUntil: "networkidle2",
-
   args: ["--no-sandbox"],
   ignoreHTTPSErrors: true,
-  executablePath: executablePath(),
+  executablePath: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
 };
 
 const goToConfig = {

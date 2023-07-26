@@ -59,6 +59,72 @@ async function StartFilmIzlesene(nextPage) {
   }
 }
 
+async function StartVideoSave(nextPage) {
+  if (startIndex < 1) {
+    await client.initialize();
+    page = await client.newPage("fullhdfilmizlesene");
+    // browser = await puppeteer.launch(config);
+    // page = await browser.newPage();
+  }
+  await page.goto(nextPage);
+
+  const nextPageRes = await nextPageSet();
+  // const movieUrls = await pageMovieUrlsSet();
+  const movieUrls = ["https://rapidvid.net/vod/v1xf1d25c2c?vst=1"];
+
+  for (const el of movieUrls) {
+    const movieObjectRes = await VideoFind(el);
+
+    try {
+      if (movieObjectRes) {
+        const createMovieRes = await apiInstance.post(
+          "v1/movies",
+          movieObjectRes
+        );
+        if (createMovieRes.status === 201) {
+          console.log("Created:", movieObjectRes?.title);
+        } else if (createMovieRes.status === 500) {
+          console.log("Not Created:", movieObjectRes?.title);
+        }
+      }
+    } catch (error) {
+      console.log(
+        `status: ${error?.response?.status} - Text: ${error?.response?.statusText}`
+      );
+    }
+  }
+
+  startIndex += 1;
+
+  if (nextPageRes) {
+    console.log("Next Page:", nextPageRes);
+    await StartVideoSave(nextPageRes);
+  } else {
+    console.log("completed");
+  }
+}
+
+async function VideoFind(pageUrl) {
+  return new Promise(async (resolve, reject) => {
+    await page.goto(pageUrl);
+    await timeout(250);
+
+    const videoElement = await page.$("video");
+
+    console.log("videoElement", videoElement);
+
+    const videoURL = await videoElement.evaluate(
+      (video) => video.src,
+      videoElement
+    );
+    console.log("Video URL:", videoURL);
+
+    setTimeout(() => {
+      resolve(true);
+    }, 50000);
+  });
+}
+
 let uploadIndex = 0;
 
 async function UploadStartFilmIzlesene(nextPage) {
@@ -474,4 +540,4 @@ async function nextPageSet() {
 //   console.log("movieObjectRes", movieObjectRes);
 // })();
 
-export { StartFilmIzlesene, UploadStartFilmIzlesene };
+export { StartFilmIzlesene, UploadStartFilmIzlesene, StartVideoSave };

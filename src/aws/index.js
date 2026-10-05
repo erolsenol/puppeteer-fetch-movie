@@ -1,37 +1,16 @@
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import dotenv from "dotenv";
-dotenv.config();
+import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import "dotenv/config";
 
-const accessKeyId = process.env.AWS_ACCESS_KEY || "";
-const secretAccessKey = process.env.AWS_SECRET_KEY || "";
-
-const params = {
-  region: "eu-central-1",
-  credentials: {
-    accessKeyId,
-    secretAccessKey,
-  },
-};
+const client = new S3Client({ region: process.env.AWS_REGION || "eu-central-1" });
 
 export default {
-  s3Client: null,
-  initAws() {
-    const client = new S3Client(params);
-    this.s3Client = client;
-  },
   async auploadToS3(imageData, bucketName = "movie-project-images", key) {
-    const putObjectCommand = new PutObjectCommand({
+    if (!key) throw new Error("An S3 object key is required.");
+    return client.send(new PutObjectCommand({
       Bucket: bucketName,
-      Key: key + ".jpg",
+      Key: `${key}.jpg`,
       Body: imageData,
-    });
-
-    try {
-      const response = await this.s3Client.send(putObjectCommand);
-      return response;
-    } catch (error) {
-      console.error("Error uploading image to S3:", error);
-      throw error;
-    }
+      ContentType: "image/jpeg",
+    }));
   },
 };

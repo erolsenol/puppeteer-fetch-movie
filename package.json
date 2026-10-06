@@ -1,12 +1,13 @@
 {
   "name": "puppeteer",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Puppeteer-based movie metadata and image-fetch experiment",
-  "main": "index.js",
+  "main": "index.ts",
   "type": "module",
   "scripts": {
-    "start": "node index.js",
-    "test": "node --test"
+    "start": "tsx index.ts",
+    "test": "node --test src/aws/index.test.js && vitest run",
+    "typecheck": "tsc --noEmit"
   },
   "author": "",
   "license": "ISC",
@@ -17,5 +18,12 @@
     "jsdom": "^29.1.0",
     "puppeteer": "^25.12.0",
     "qs": "^6.15.1"
-  }
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  },
+  "private": true
 }

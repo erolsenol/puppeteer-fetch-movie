@@ -18,8 +18,10 @@ npm test
 npm start
 ```
 
-`npm start` launches the historical scraper. It may need source changes to work with current target sites. S3 writes use the AWS SDK default credential provider chain and the `eu-central-1` region by default.
+`npm start` runs the typed, bounded IMDb rating updater. It requires an explicit HTTPS `API_URL`, `SCRAPER_ALLOW_API_WRITES=true`, and `SCRAPER_ALLOWED_HOSTS=www.google.com,www.imdb.com`. Review and authorize the target API and source sites yourself before setting these values. `SCRAPER_MAX_PAGES` defaults to 1 and is capped at 100. Historical scraper modules remain for reference. S3 writes use the AWS SDK default credential provider chain and the `eu-central-1` region by default.
 
 ## Safety and licensing
 
 Use the scraper only where permitted by the target site's terms and applicable law. No license is granted unless a `LICENSE` file is present.
+
+The runner awaits each page, validates API records and rating values, and closes Chromium in `finally`. Browser requests are restricted to the configured host allowlist; API redirects are disabled. AWS is not initialized by the rating runner. Tests use local fixtures and do not scrape sites or write to an API. Use `npm run typecheck` and `npm test`.
